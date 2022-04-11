@@ -1,0 +1,192 @@
+---
+title: 'Dimensionality Reduction using Principal Component Analysis and Multi-dimensional
+  scaling '
+author: "Prabin Kharel"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Let's use the  'mtcars' dataset for Principal Component Analysis and multidimensional scaling. Let's view the structure of the dataset.
+
+
+```{r}
+#first check the dataset
+head(mtcars)
+```
+
+```{r}
+#let's check the structure of dataset
+str(mtcars)
+```
+
+
+Since we have a lot of components in the mtcars dataset, assuming lesser influence of the binary variables, we get rid of vs and am from the mtcars dataset and create a subset with remaining components.
+
+```{r}
+#dropping two binary variable and making a subset "mtcars.subset"
+mtcars.subset <- subset(mtcars, select = -c(vs,am))
+```
+
+Let's fit  PCA in the subset and get summary.
+
+```{r}
+#fitting PCA in the mtcars.subset as mtcars.pca using the princomp() function 
+mtcars.pca <- princomp(mtcars.subset, cor = T, scores = T)
+```
+
+```{r}
+summary(mtcars.pca)
+```
+Visualization of the PCs
+```{r}
+plot(mtcars.pca)
+```
+```{r}
+# scree plot
+plot(mtcars.pca, type = "l")
+```
+
+```{r}
+library(ggbiplot)
+ggbiplot(mtcars.pca, labels = rownames(mtcars))
+```
+
+In Principal Component Analysis, we do not determine how many components should be used. Rather we first find out the number of components to be used for final PCA by using scree plot and eigenvalues.
+
+```{r}
+#squares of standard deviation gives us the eigenvalue
+eigenvalues <- mtcars.pca$sdev^2
+eigenvalues
+```
+
+Kaiser's criteria states that any principal components with eigenvalues greater or equal to one must be retained for latent variable. Here, we see PC1 and PC2 are the only PC's that we should use for the latent variable.
+
+Let's draw a scree plot and chose the number of components best on “first bend” of this plot.
+
+```{r}
+library(ggplot2)
+#we need to calculate total variance explained by each principal components
+var_explained <- mtcars.pca$sdev^2 / sum(mtcars.pca$sdev^2)
+
+#making a scree plot
+qplot(c(1:9),var_explained) + geom_line() + xlab("Principal Components") + ylab(" Variance Explained") + ggtitle("Scree Plot") + ylim(0,1)
+```
+
+
+In the plot, the first bend occurs on 2, so we choose only 2 components.
+
+Since from Kaiser's rule, we retained only the components with eigenvalues greater than 1 for the latent variable. In our case, there were two principal components with eigenvalues greater than 1, namely PC1 and PC2. Also, the first bend on the scree plot suggested us to take only 2 components into account. So, in agreement to both the Kaiser's rule and Scree plot, we should retain 2 components.
+
+
+Now, we fit the final PCA model based on the retained components. For this we use the library "psych". 
+
+```{r}
+library(psych)
+final.pca <- psych::principal(mtcars.subset, nfactors=2, rotate= "none")
+final.pca
+```
+
+
+
+Of the total variance explained, PC1 accounts for 63% and PC2 accounts for 23% of the variance, summing to 86% of the total variance. So, these two were sufficient for our PCA.
+
+
+Now we can see which cars are similar to one another. Here the Maserati Bora, Ferrari Dino and Ford Pantera L all cluster together at the top which makes sense, as all of these are sports cars.
+
+
+
+Let's compare the loadings from the first and final PCA's. Loadings are the coefficients of the linear combination of the initial variables from which the principal components are constructed. When the loadings has positive value, it means higher scores are correlated to higher component scores and negative value in the loadings mean that higher score are correlated to lower component scores.
+
+
+```{r}
+head(mtcars.pca$loadings)
+```
+
+
+```{r}
+head(final.pca$loadings)
+```
+
+Here, PC1 has strong negative loadings for mpg and drat and strong positive loadings for cyl and disp. This likely represents that axis 1 is more correlated to cyl and disp and less correlated to mpg and drat. Similarly we can analyze for the 2nd axis as well. 
+
+let's look at the biplot of these two component loadings.
+
+```{r}
+biplot(final.pca,labels = rownames(mtcars.subset))
+```
+
+
+
+
+
+We see that mpg and cyl have very high values but are moving in the opposite direction. Similar thing was observed from their loading values in PC1. Although, loadings values of PC2 does not show much of difference but since PC1 does explain the major portion of the variance we can see the plot also gives similar result.
+
+Now let's compare the scores of first and final PCA's. Scores are just a linear combination of the raw data, with weighting given by the loadings.This means the scores on all the PCs are just the linear combination of the original value and the weigthing given by loadings.
+
+```{r}
+head(mtcars.pca$scores)
+```
+
+
+```{r}
+head(final.pca$scores)
+```
+
+This means the scores on PC1 and PC2 are just the linear combination of the original value and the weighting given by loadings.
+
+Following figure shows the biplot of these two component scores.
+
+```{r}
+biplot(final.pca,rownames(mtcars.subset))
+```
+
+Here, we see that mpg and cyl have very high values but are moving in the opposite direction. Since scores are the linear combinations of raw data and loadings, this might be because of their higher loading values in opposite directions.
+
+
+NOw, let's get dissimilar distance of all the variables of mtcars data as mtcars.dist and fit classical multi-dimensional scaling model with the mtcars.dist in 2-dimensional state as cars.mds.2d 
+
+
+```{r}
+mtcars.dist<-dist(mtcars.subset)
+head(mtcars.dist)
+```
+```{r}
+cars.mds.2d <- cmdscale(mtcars.dist)
+summary(cars.mds.2d)
+```
+
+```{r}
+plot(cars.mds.2d, pch=15)
+abline(h=0,v=0)
+text(cars.mds.2d, pos = 3, labels = rownames(mtcars.subset),col="blue")
+```
+
+
+let's fit the same mtcars.dist again with MDS but this time in 3-dimension state cars.mds.3d 
+
+```{r}
+cars.mds.3d <- cmdscale(mtcars.dist,k=3)
+summary(cars.mds.3d)
+```
+
+```{r}
+library(scatterplot3d)
+cars.mds.3d <- data.frame(cars.mds.3d)
+scatterplot3d(cars.mds.3d, type="h", pch=20, lty.hplot=2,color = "blue")
+```
+
+
+
+```{r}
+library(scatterplot3d)
+cars.mds.3d <- data.frame(cmdscale(mtcars.dist, k = 3))
+scatterplot3d(cars.mds.3d, type = "h", pch = 19, lty.hplot = 2, color = mtcars$cyl)
+```
+
+Here, we have the V1,V2 and V3 of the multi dimensional scaling model represented by different colors for easier visualization.
+
+
+While PCA retains the important dimensions for us (PC1 and PC2) with help of eigenvalues and the scree plot, MDS gives us configuration to m-dimensions and reproduces dissimilarities on the map more directly and accurately than PCA. Also for PCA we do not define how many dimensions we need (we got 2 from eigenvalues and scree plot and not because we wanted to make it 2) but in MDS we can define how many dimensions do we want (we made a multi-dimensional scaling model with 2 and 3 dimensions).
